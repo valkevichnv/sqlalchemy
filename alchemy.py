@@ -127,9 +127,10 @@ def get_employees_between(engine):
     return get_query_result(engine, query)
 
 
-def get_self_employed_workers():
+def get_self_employed_workers(engine):
     # SELECT NAME, CHIEF FROM WORKERS WHERE CHIEF == ''
-    pass
+    query = 'SELECT ENAME,MGR FROM EMP WHERE MGR IS NULL'
+    return get_query_result(engine, query)
 
 
 def get_workers():
@@ -161,4 +162,4 @@ if __name__ == "__main__":
     engine, error = create(False)
     if error != None: raise Exception(error)
     setup(engine)
-    print(get_employees_between(engine))
+    print(get_self_employed_workers(engine))
