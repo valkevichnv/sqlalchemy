@@ -1,3 +1,4 @@
+#!/usr/bin/python3.7
 '''
 Задания
 
@@ -23,9 +24,67 @@
 12 - Найдите и распечатайте отделы, в которых работает больше 3-х служащих.
 '''
 
+from sqlalchemy import create_engine
+from sqlalchemy import Column, Integer, String, Date, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.exc import ArgumentError
 
-def connect():
+
+def create():
     # Connect to DB, catch exceptions
+
+    error = None
+    try:
+        engine = create_engine('sqlite:///:memory:', echo=True)
+    except ModuleNotFoundError:
+        print("Error: module not found")
+        error = 'MNF'
+    except ArgumentError:
+        print("Error: invalid arguments.")
+        error = "IA"
+    return engine, error
+
+
+def setup(engine):
+    Base = declarative_base()
+
+    class Dept(Base):
+        __tablename__ = "dept"
+        deptno = Column(Integer, primary_key=True)
+        dname = Column(String)
+        loc = Column(String)
+
+        def __init__(self, name):
+            self.__name__ = name
+
+    class Emp(Base):
+        __tablename__ = "emp"
+        empno = Column(Integer, primary_key=True)
+        ename = Column(String)
+        job = Column(String)
+        mgr = Column(Integer)
+        hiredate = Column(Date)
+        sal = Column(Integer)
+        comm = Column(Integer)
+        deptno = ForeignKey("dept.deptno")
+
+        def __init__(self, name):
+            self.__name__ = name
+
+    class Salgrade(Base):
+        __tablename__ = "salgrade"
+        id = Column(Integer, primary_key=True)
+        grade = Column(Integer)
+        losal = Column(Integer)
+        hisal = Column(Integer)
+
+        def __init__(self, name):
+            self.__name__ = name
+
+    Base.metadata.create_all(engine)
+
+
+def disconnect():
     pass
 
 
@@ -86,4 +145,7 @@ def get_departments_with_3plus_workers():
 
 
 if __name__ == "__main__":
-    pass
+    engine, error = create()
+    #    setup(engine)
+    if error != None: raise Exception(error)
+    setup(engine)
