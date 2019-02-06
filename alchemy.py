@@ -119,10 +119,12 @@ def get_positions_by_department(engine):
     return get_query_result(engine, query)
 
 
-def get_employees_between(date_1, date_2):
+def get_employees_between(engine):
     # SELECT NAME, EMPLOY_DATE FROM WORKERS WHERE  EMPLOY_DATE <= 01.01.1979
     # OR EMPLOY_DATE >= 01.02.1981 SORT BY EMPLOY_DATE DESCENDING
-    pass
+    query = 'SELECT ENAME,HIREDATE FROM EMP WHERE (HIREDATE <=19790101 OR ' \
+            'HIREDATE >=19810201) ORDER BY HIREDATE DESC'
+    return get_query_result(engine, query)
 
 
 def get_self_employed_workers():
@@ -159,4 +161,4 @@ if __name__ == "__main__":
     engine, error = create(False)
     if error != None: raise Exception(error)
     setup(engine)
-    print(get_positions_by_department(engine))
+    print(get_employees_between(engine))
