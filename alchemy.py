@@ -20,7 +20,7 @@
 8 + Определить сотрудников 10 отдела, занимающих должность менеджера или имеющих годовой доход более 3000.
 9 - Вывести всех служащих в иерархическом порядке, определяемом должностной подчиненностью.
 10 + Вычислите и выведите максимальную, среднюю и минимальную зарплату для каждой должности в отделе.
-11 - Определите количество служащих в каждом отделе компании.
+11 + Определите количество служащих в каждом отделе компании.
 12 - Найдите и распечатайте отделы, в которых работает больше 3-х служащих.
 '''
 
@@ -154,8 +154,9 @@ def get_salary_by_position(engine):
     return get_query_result(engine, query)
 
 
-def get_workers_quantity_by_department():
-    pass
+def get_workers_quantity_by_department(engine):
+    query = 'SELECT COUNT(ENAME),DEPTNO FROM EMP GROUP BY DEPTNO'
+    return get_query_result(engine, query)
 
 
 def get_departments_with_3plus_workers():
@@ -166,4 +167,4 @@ if __name__ == "__main__":
     engine, error = create(False)
     if error != None: raise Exception(error)
     setup(engine)
-    print(get_salary_by_position(engine))
+    print(get_workers_quantity_by_department(engine))
