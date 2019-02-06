@@ -115,7 +115,7 @@ def get_annual_income(engine):
 
 def get_positions_by_department(engine):
     # SELECT POSITION, DEPARTMENT FROM WORKERS SORT BY DEPARTMENT
-    query = 'SELECT JOB,DEPTNO FROM EMP SORT GROUP BY DEPTNO,JOB'
+    query = 'SELECT JOB,DEPTNO FROM EMP GROUP BY DEPTNO,JOB'
     return get_query_result(engine, query)
 
 
@@ -133,11 +133,14 @@ def get_self_employed_workers(engine):
     return get_query_result(engine, query)
 
 
-def get_workers():
+def get_workers(engine):
     # SELECT NAME, DEPARTMENT, POSITION, INCOME FROM WORKERS WHERE DEPARTMENT == 10 AND
     # (POSITION == 'manager' OR INCOME > 3000)
     # if department==10 and (position == 'manager' or min_income>3000): query = True
-    pass
+    query = 'SELECT ENAME,JOB,SAL+IFNULL(COMM,0) AS INCOME FROM EMP WHERE (DEPTNO = 10 ' \
+            'AND (JOB = "MANAGER" OR INCOME>3000))'
+
+    return get_query_result(engine, query)
 
 
 def get_workers_hierarchy():
@@ -162,4 +165,4 @@ if __name__ == "__main__":
     engine, error = create(False)
     if error != None: raise Exception(error)
     setup(engine)
-    print(get_self_employed_workers(engine))
+    print(get_workers(engine))
