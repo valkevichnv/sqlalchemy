@@ -24,28 +24,33 @@
 12 - Найдите и распечатайте отделы, в которых работает больше 3-х служащих.
 '''
 
-from sqlalchemy import create_engine
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.exc import ArgumentError
+from sqlalchemy.orm import sessionmaker, relationships
 
 
-def create():
+def create(echoing=False):
     # Connect to DB, catch exceptions
-
+    from sqlalchemy.exc import ArgumentError
+    from sqlalchemy import create_engine
+    engine = None
     error = None
     try:
-        engine = create_engine('sqlite:///:memory:', echo=True)
+        engine = create_engine('sqlite:///:memory:', echo=echoing)
+
     except ModuleNotFoundError:
-        print("Error: module not found")
-        error = 'MNF'
+        error = 'Module not found'
     except ArgumentError:
-        print("Error: invalid arguments.")
-        error = "IA"
+        error = "Invalid Arguments for create_engine"
     return engine, error
 
 
 def setup(engine):
+    create_tables(engine)
+    make_queries(engine)
+
+
+def create_tables(engine):
+    from sqlalchemy import Column, Integer, String, Date, ForeignKey
+    from sqlalchemy.ext.declarative import declarative_base
     Base = declarative_base()
 
     class Dept(Base):
@@ -63,18 +68,17 @@ def setup(engine):
         ename = Column(String)
         job = Column(String)
         mgr = Column(Integer)
-        hiredate = Column(Date)
+        hiredate = Column(Integer)
         sal = Column(Integer)
         comm = Column(Integer)
-        deptno = ForeignKey("dept.deptno")
+        deptno = Column(ForeignKey("dept.deptno"))
 
         def __init__(self, name):
             self.__name__ = name
 
     class Salgrade(Base):
         __tablename__ = "salgrade"
-        id = Column(Integer, primary_key=True)
-        grade = Column(Integer)
+        grade = Column(Integer, primary_key=True)
         losal = Column(Integer)
         hisal = Column(Integer)
 
@@ -84,23 +88,27 @@ def setup(engine):
     Base.metadata.create_all(engine)
 
 
-def disconnect():
-    pass
+def make_queries(engine):
+    from sqlalchemy.exc import OperationalError
+    db = engine.connect()
+    with open('data/data.sql', 'r') as queryfile:
+        for query in queryfile.read().split('\n'):
+
+            try:
+                db.execute(query.replace(',to_date(', ',date('))
+            except OperationalError:
+                print("Error in:", query)
+    db.close()
 
 
-def create_tables():
-    # Use schema.sql
-    pass
+def get_annual_income(engine):
+    query = 'SELECT ENAME,SAL+IFNULL( COMM, 0 ) FROM EMP;'
+    conn = engine.connect()
+    result = conn.execute(query)
 
+    conn.close()
+    return result.fetchall()
 
-def make_queries():
-    # Use data.sql
-    pass
-
-
-def get_annual_income():
-    # SELECT NAME, INCOME FROM WORKERS
-    pass
 
 
 def get_positions_by_department():
@@ -145,7 +153,9 @@ def get_departments_with_3plus_workers():
 
 
 if __name__ == "__main__":
-    engine, error = create()
-    #    setup(engine)
+    engine, error = create(False)
     if error != None: raise Exception(error)
     setup(engine)
+    print(get_annual_income(engine))
+
+
