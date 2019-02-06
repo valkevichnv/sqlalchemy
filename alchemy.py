@@ -101,19 +101,22 @@ def make_queries(engine):
     db.close()
 
 
-def get_annual_income(engine):
-    query = 'SELECT ENAME,SAL+IFNULL( COMM, 0 ) FROM EMP;'
+def get_query_result(engine, query):
     conn = engine.connect()
     result = conn.execute(query)
-
     conn.close()
     return result.fetchall()
 
 
+def get_annual_income(engine):
+    query = 'SELECT ENAME,SAL+IFNULL( COMM, 0 ) FROM EMP;'
+    return get_query_result(engine, query)
 
-def get_positions_by_department():
+
+def get_positions_by_department(engine):
     # SELECT POSITION, DEPARTMENT FROM WORKERS SORT BY DEPARTMENT
-    pass
+    query = 'SELECT JOB,DEPTNO FROM EMP SORT GROUP BY DEPTNO,JOB'
+    return get_query_result(engine, query)
 
 
 def get_employees_between(date_1, date_2):
@@ -156,6 +159,4 @@ if __name__ == "__main__":
     engine, error = create(False)
     if error != None: raise Exception(error)
     setup(engine)
-    print(get_annual_income(engine))
-
-
+    print(get_positions_by_department(engine))
