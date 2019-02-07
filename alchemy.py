@@ -26,6 +26,7 @@
 
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 
 
 def create(echoing=False):
@@ -103,15 +104,23 @@ def get_workers():
     # Hugging PyCharm hugged up my formatting!!!!
 
 
+def get_query_result(query):
+    conn = engine.connect()
+    result = conn.execute(query)
+    conn.close()
+    return result.fetchall()
+
+
 def get_workers_hierarchy():
     hierarchy = []
     mgrs = [None]
     while mgrs != []:
         for mgr in mgrs:
-            hierarchy.append([x for x in session.query(Emp.empno, Emp.job, Emp.deptno, Emp.mgr).filter(Emp.mgr == mgr)])
+            hierarchy.append([x for x in session.query(Emp.empno, Emp.mgr).filter(Emp.mgr == mgr)])
             mgrs = [mgr[0] for mgr in hierarchy[-1]]
     hierarchy.pop()
     return hierarchy
+   
 
 
 def get_salary_by_position():
@@ -128,7 +137,7 @@ def get_workers_quantity_by_department():
 def get_departments_with_3plus_workers():
     from sqlalchemy.sql import func
 
-    return [x for x in session.query(func.count(Emp.ename), Emp.deptno).group_by(Emp.deptno) if x[0] > 3]
+    return session.query(func.count(Emp.ename), Emp.deptno).group_by(Emp.deptno).having(func.count(Emp.ename) > 3)
 
 
 if __name__ == "__main__":
@@ -160,6 +169,8 @@ if __name__ == "__main__":
         sal = Column(Integer)
         comm = Column(Integer)
         deptno = Column(ForeignKey("dept.deptno"))
+       # manager = relationship('Emp',back_populates='parent')
+       # employee = relationship("Parent", back_populates="children")
 
         def __init__(self, name):
             self.__name__ = name
@@ -178,6 +189,6 @@ if __name__ == "__main__":
     Base.metadata.create_all(engine)
     setup(engine)
     session = create_session(engine)
-    print_query(get_departments_with_3plus_workers())
+    print_query(get_workers_hierarchy())
 
     close_session(session)
