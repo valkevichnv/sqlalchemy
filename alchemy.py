@@ -24,7 +24,8 @@
 12 - Найдите и распечатайте отделы, в которых работает больше 3-х служащих.
 '''
 
-from sqlalchemy.orm import sessionmaker, relationships
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
 
 
 def create(echoing=False):
@@ -44,14 +45,100 @@ def create(echoing=False):
 
 
 def setup(engine):
-    create_tables(engine)
-    make_queries(engine)
+    from sqlalchemy.exc import OperationalError
+    db = engine.connect()
+    with open('data/data.sql', 'r') as queryfile:
+        for query in queryfile.read().split('\n'):
+
+            try:
+                db.execute(query.replace(',to_date(', ',date('))
+            except OperationalError:
+                print("Error in:", query)
+    db.close()
 
 
-def create_tables(engine):
-    from sqlalchemy import Column, Integer, String, Date, ForeignKey
-    from sqlalchemy.ext.declarative import declarative_base
+def create_session(engine):
+    from sqlalchemy.orm import sessionmaker
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    return (session)
+
+
+def close_session(session):
+    session.close()
+
+
+def print_query(query):
+    for instance in query:
+        print(instance)
+
+
+def get_annual_income():
+    from sqlalchemy.sql import func
+    return session.query(Emp.ename, Emp.sal + func.ifnull(Emp.comm, 0))
+
+
+def get_positions_by_department():
+    # query = 'SELECT JOB,DEPTNO FROM EMP ORDER BY DEPTNO'
+    return session.query(Emp.job, Emp.deptno).order_by(Emp.deptno)
+
+
+def get_employees_between():
+    from sqlalchemy import or_
+    return session.query(Emp.ename, Emp.hiredate).filter(
+        or_(Emp.hiredate <= 19790101, Emp.hiredate >= 19810201)).order_by(Emp.hiredate.desc())
+
+
+def get_self_employed_workers():
+    return session.query(Emp.ename, Emp.mgr).filter(Emp.mgr == None)
+
+
+def get_workers():
+    from sqlalchemy.sql import func, and_, or_
+
+    return session.query(Emp.ename, Emp.sal + func.ifnull(Emp.comm, 0)).filter(and_(Emp.deptno == 10),
+                                                                               or_(Emp.job == 'MANAGER',
+                                                                                   (Emp.sal + func.ifnull(Emp.comm,
+                                                                                                          0)) > 3000))
+    # Hugging PyCharm hugged up my formatting!!!!
+
+
+def get_workers_hierarchy():
+    hierarchy = []
+    mgrs = [None]
+    while mgrs != []:
+        for mgr in mgrs:
+            hierarchy.append([x for x in session.query(Emp.empno, Emp.job, Emp.deptno, Emp.mgr).filter(Emp.mgr == mgr)])
+            mgrs = [mgr[0] for mgr in hierarchy[-1]]
+    hierarchy.pop()
+    return hierarchy
+
+
+def get_salary_by_position():
+    from sqlalchemy.sql import func
+    return session.query(func.min(Emp.sal), func.avg(Emp.sal), func.max(Emp.sal), Emp.deptno).group_by(Emp.deptno)
+
+
+def get_workers_quantity_by_department():
+    from sqlalchemy.sql import func
+
+    return session.query(func.count(Emp.ename), Emp.deptno).group_by(Emp.deptno)
+
+
+def get_departments_with_3plus_workers():
+    from sqlalchemy.sql import func
+
+    return [x for x in session.query(func.count(Emp.ename), Emp.deptno).group_by(Emp.deptno) if x[0] > 3]
+
+
+if __name__ == "__main__":
+
+    engine, error = create(False)
+    if error is not None:
+        raise Exception(error)
+
     Base = declarative_base()
+
 
     class Dept(Base):
         __tablename__ = "dept"
@@ -61,6 +148,7 @@ def create_tables(engine):
 
         def __init__(self, name):
             self.__name__ = name
+
 
     class Emp(Base):
         __tablename__ = "emp"
@@ -76,6 +164,7 @@ def create_tables(engine):
         def __init__(self, name):
             self.__name__ = name
 
+
     class Salgrade(Base):
         __tablename__ = "salgrade"
         grade = Column(Integer, primary_key=True)
@@ -85,86 +174,10 @@ def create_tables(engine):
         def __init__(self, name):
             self.__name__ = name
 
+
     Base.metadata.create_all(engine)
-
-
-def make_queries(engine):
-    from sqlalchemy.exc import OperationalError
-    db = engine.connect()
-    with open('data/data.sql', 'r') as queryfile:
-        for query in queryfile.read().split('\n'):
-
-            try:
-                db.execute(query.replace(',to_date(', ',date('))
-            except OperationalError:
-                print("Error in:", query)
-    db.close()
-
-
-def get_query_result(engine, query):
-    conn = engine.connect()
-    result = conn.execute(query)
-    conn.close()
-    return result.fetchall()
-
-
-def get_annual_income(engine):
-    query = 'SELECT ENAME,SAL+IFNULL( COMM, 0 ) FROM EMP;'
-    return get_query_result(engine, query)
-
-
-def get_positions_by_department(engine):
-    # SELECT POSITION, DEPARTMENT FROM WORKERS SORT BY DEPARTMENT
-    query = 'SELECT JOB,DEPTNO FROM EMP GROUP BY DEPTNO,JOB'
-    return get_query_result(engine, query)
-
-
-def get_employees_between(engine):
-    # SELECT NAME, EMPLOY_DATE FROM WORKERS WHERE  EMPLOY_DATE <= 01.01.1979
-    # OR EMPLOY_DATE >= 01.02.1981 SORT BY EMPLOY_DATE DESCENDING
-    query = 'SELECT ENAME,HIREDATE FROM EMP WHERE (HIREDATE <=19790101 OR ' \
-            'HIREDATE >=19810201) ORDER BY HIREDATE DESC'
-    return get_query_result(engine, query)
-
-
-def get_self_employed_workers(engine):
-    # SELECT NAME, CHIEF FROM WORKERS WHERE CHIEF == ''
-    query = 'SELECT ENAME,MGR FROM EMP WHERE MGR IS NULL'
-    return get_query_result(engine, query)
-
-
-def get_workers(engine):
-    # SELECT NAME, DEPARTMENT, POSITION, INCOME FROM WORKERS WHERE DEPARTMENT == 10 AND
-    # (POSITION == 'manager' OR INCOME > 3000)
-    # if department==10 and (position == 'manager' or min_income>3000): query = True
-    query = 'SELECT ENAME,JOB,SAL+IFNULL(COMM,0) AS INCOME FROM EMP WHERE (DEPTNO = 10 ' \
-            'AND (JOB = "MANAGER" OR INCOME>3000))'
-
-    return get_query_result(engine, query)
-
-
-def get_workers_hierarchy():
-    # Hug knows how to query this @LinusTorwalds
-    pass
-
-
-def get_salary_by_position(engine):
-    # max, min, avg
-    query = 'SELECT MIN(SAL),AVG(SAL),MAX(SAL),DEPTNO FROM EMP GROUP BY DEPTNO'
-    return get_query_result(engine, query)
-
-
-def get_workers_quantity_by_department(engine):
-    query = 'SELECT COUNT(ENAME),DEPTNO FROM EMP GROUP BY DEPTNO'
-    return get_query_result(engine, query)
-
-
-def get_departments_with_3plus_workers():
-    pass
-
-
-if __name__ == "__main__":
-    engine, error = create(False)
-    if error != None: raise Exception(error)
     setup(engine)
-    print(get_workers_quantity_by_department(engine))
+    session = create_session(engine)
+    print_query(get_departments_with_3plus_workers())
+
+    close_session(session)
