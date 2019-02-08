@@ -189,7 +189,7 @@ if __name__ == "__main__":
 
     Base.metadata.create_all(engine)
     setup(engine)
-   # session = create_session(engine)
+    session = create_session(engine)
     #print_query(get_salary_by_department())
 
-    #close_session(session)
+    close_session(session)
